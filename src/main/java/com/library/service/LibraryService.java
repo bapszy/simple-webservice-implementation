@@ -4,6 +4,9 @@ import com.library.model.Book;
 import com.library.model.Borrower;
 import com.library.repository.BookRepository;
 import com.library.repository.BorrowerRepository;
+import io.micrometer.core.instrument.Counter;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.Tracer;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -15,10 +18,17 @@ public class LibraryService {
 
     private final BookRepository bookRepository;
     private final BorrowerRepository borrowerRepository;
+    private final Counter bookBorrowCounter;
+    private final Tracer tracer;
 
-    public LibraryService(BookRepository bookRepository, BorrowerRepository borrowerRepository) {
+    public LibraryService(BookRepository bookRepository,
+                          BorrowerRepository borrowerRepository,
+                          Counter bookBorrowCounter,
+                          Tracer tracer) {
         this.bookRepository = bookRepository;
         this.borrowerRepository = borrowerRepository;
+        this.bookBorrowCounter = bookBorrowCounter;
+        this.tracer = tracer;
     }
 
     // --- Book Operations ---
@@ -32,20 +42,33 @@ public class LibraryService {
     }
 
     public Book borrowBook(Long bookId, Long borrowerId) {
-        Book book = bookRepository.findById(bookId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Book not found with id: " + bookId));
+        // Custom OpenTelemetry Span indítása
+        Span span = tracer.spanBuilder("borrowBookOperation").startSpan();
+        try {
+            Book book = bookRepository.findById(bookId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Book not found with id: " + bookId));
 
-        if (book.isBorrowed()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Book is already borrowed");
+            if (book.isBorrowed()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Book is already borrowed");
+            }
+
+            Borrower borrower = borrowerRepository.findById(borrowerId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Borrower not found with id: " + borrowerId));
+
+            book.setBorrowed(true);
+            book.setBorrower(borrower);
+
+            Book savedBook = bookRepository.save(book);
+
+            // Custom OpenTelemetry Metric növelése sikeres kölcsönzéskor
+            bookBorrowCounter.increment();
+
+            return savedBook;
+
+        } finally {
+            // Span lezárása
+            span.end();
         }
-
-        Borrower borrower = borrowerRepository.findById(borrowerId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Borrower not found with id: " + borrowerId));
-
-        book.setBorrowed(true);
-        book.setBorrower(borrower);
-
-        return bookRepository.save(book);
     }
 
     // --- Borrower Operations ---
