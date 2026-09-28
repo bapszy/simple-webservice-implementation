@@ -42,7 +42,7 @@ class LibraryIntegrationTest {
 
     @Test
     void createBorrowerAndAddBook_ThenBorrowBook() throws Exception {
-        // 1. Borrower létrehozása REST API-n keresztül
+        // 1. Create a new Borrower via REST API
         Borrower borrower = new Borrower(null, "Alice Smith", "alice@example.com");
         String borrowerResponse = mockMvc.perform(post("/borrowers")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -53,7 +53,7 @@ class LibraryIntegrationTest {
 
         Borrower createdBorrower = objectMapper.readValue(borrowerResponse, Borrower.class);
 
-        // 2. Könyv hozzáadása REST API-n keresztül
+        // 2. Add a new Book via REST API
         Book book = new Book(null, "The Pragmatic Programmer", "Andy Hunt", false, null);
         String bookResponse = mockMvc.perform(post("/books")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -64,14 +64,14 @@ class LibraryIntegrationTest {
 
         Book createdBook = objectMapper.readValue(bookResponse, Book.class);
 
-        // 3. Könyv kikölcsönzése
+        // 3. Borrow the Book
         mockMvc.perform(post("/books/" + createdBook.getId() + "/borrow")
                         .param("borrowerId", String.valueOf(createdBorrower.getId())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.borrowed", is(true)))
                 .andExpect(jsonPath("$.borrower.id", is(createdBorrower.getId().intValue())));
 
-        // 4. Kölcsönzőhöz tartozó könyvek lekérdezése
+        // 4. Retrieve books borrowed by this user
         mockMvc.perform(get("/borrowers/" + createdBorrower.getId() + "/books"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)))

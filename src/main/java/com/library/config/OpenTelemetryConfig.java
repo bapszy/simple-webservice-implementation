@@ -10,7 +10,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class OpenTelemetryConfig {
 
-    // 1. Custom Metric: Számláló a sikeres könyvkölcsönzések nyomon követésére
+    // 1. Custom Metric: Counter to track successful book borrowings
     @Bean
     public Counter bookBorrowCounter(MeterRegistry meterRegistry) {
         return Counter.builder("library.books.borrowed.total")
@@ -18,7 +18,7 @@ public class OpenTelemetryConfig {
                 .register(meterRegistry);
     }
 
-    // 2. Custom Tracer Bean az egyedi Span-ek létrehozásához
+    // 2. Custom Tracer Bean for creating custom Spans
     @Bean
     public Tracer openTelemetryTracer(OpenTelemetry openTelemetry) {
         return openTelemetry.getTracer("com.library.tracer");

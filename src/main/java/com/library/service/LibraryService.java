@@ -42,7 +42,7 @@ public class LibraryService {
     }
 
     public Book borrowBook(Long bookId, Long borrowerId) {
-        // Custom OpenTelemetry Span indítása
+        // Create a custom OpenTelemetry span for tracking this operation
         Span span = tracer.spanBuilder("borrowBookOperation").startSpan();
         try {
             Book book = bookRepository.findById(bookId)
@@ -60,13 +60,12 @@ public class LibraryService {
 
             Book savedBook = bookRepository.save(book);
 
-            // Custom OpenTelemetry Metric növelése sikeres kölcsönzéskor
+            // Increment custom OpenTelemetry metric counter
             bookBorrowCounter.increment();
 
             return savedBook;
 
         } finally {
-            // Span lezárása
             span.end();
         }
     }
